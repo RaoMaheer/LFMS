@@ -7,8 +7,7 @@ import {
 
 const BASE = 'https://lfms-backend-dgpk.onrender.com/api/law';
 
-const myId = role === 'admin' ? 0 : user?.id;
-console.log('role:', role, 'user:', user, 'myId:', myId);
+
 
 const fmtTime = (d) =>
   new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
