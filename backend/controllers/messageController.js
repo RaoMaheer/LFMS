@@ -5,14 +5,14 @@ export const getMessages = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT m.*, 
-        s.name AS sender_name,
-        r.name AS receiver_name
+        COALESCE(s.name, 'Admin') AS sender_name,
+        COALESCE(r.name, 'Admin') AS receiver_name
        FROM messages m
-       JOIN lawyers s ON m.sender_id = s.lawyer_id
-       JOIN lawyers r ON m.receiver_id = r.lawyer_id
+       LEFT JOIN lawyers s ON m.sender_id = s.lawyer_id
+       LEFT JOIN lawyers r ON m.receiver_id = r.lawyer_id
        WHERE (m.sender_id = $1 AND m.receiver_id = $2)
           OR (m.sender_id = $2 AND m.receiver_id = $1)
-       ORDER BY m.created_at ASC`,
+       ORDER BY m.message_id ASC`,
       [senderId, receiverId]
     );
     res.json(result.rows);
