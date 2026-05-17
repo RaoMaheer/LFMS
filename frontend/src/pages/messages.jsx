@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import {
-  MessageSquare, Send, Search,
-  User, Clock
+  MessageSquare, Send, Search, X,
+  User, Clock, Bell, BellOff
 } from 'lucide-react';
 
 const BASE = 'http://localhost:5000/api/law';
@@ -18,17 +18,23 @@ const fmtDate = (d) =>
 const Messages = () => {
   const { user, role } = useSelector((s) => s.auth);
 
-  const [lawyers,      setLawyers]      = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [messages,     setMessages]     = useState([]);
-  const [newMsg,       setNewMsg]       = useState('');
-  const [search,       setSearch]       = useState('');
-  const [loading,      setLoading]      = useState(false);
+  const [lawyers,         setLawyers]         = useState([]);
+  const [selectedUser,    setSelectedUser]    = useState(null);
+  const [messages,        setMessages]        = useState([]);
+  const [newMsg,          setNewMsg]          = useState('');
+  const [search,          setSearch]          = useState('');
+  const [loading,         setLoading]         = useState(false);
+  const [unreadCounts,    setUnreadCounts]    = useState({});      // ← unread tracking
+  const [lastMessageTime, setLastMessageTime] = useState({});      // ← for sorting
+  const [notification,    setNotification]    = useState(null);    // ← popup notification
+  const [notifSound,      setNotifSound]      = useState(true);    // ← toggle sound
 
-  const bottomRef  = useRef(null);
-  const pollRef    = useRef(null);
+  const bottomRef   = useRef(null);
+  const pollRef     = useRef(null);
+  const audioRef    = useRef(null);
+  const lastCountRef = useRef({});
 
-  // my ID — admin uses 0, lawyer uses their lawyer_id
+  // my ID
   const myId = role === 'admin' ? 0 : user?.id;
 
   // fetch all lawyers for contact list
@@ -43,23 +49,109 @@ const Messages = () => {
   useEffect(() => {
     if (!selectedUser) return;
     fetchMessages();
+    // mark as read when opening conversation
+    markAsRead(selectedUser.lawyer_id);
 
-    // poll every 3 seconds for new messages
-    pollRef.current = setInterval(fetchMessages, 3000);
+    pollRef.current = setInterval(fetchMessages, 2000); // ← faster polling
     return () => clearInterval(pollRef.current);
   }, [selectedUser]);
 
-  // scroll to bottom when messages change
+  // scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // fetch and check for new messages (even if no conversation open)
+  useEffect(() => {
+    const checkNewMessages = async () => {
+      try {
+        const res = await fetch(`${BASE}/messages/lawyers-list`);
+        const lawyersList = await res.json();
+
+        // fetch unread counts for all conversations
+        const newUnreadCounts = { ...unreadCounts };
+        const newLastMessageTime = { ...lastMessageTime };
+
+        for (const lawyer of lawyersList) {
+          if (lawyer.lawyer_id === myId) continue;
+
+          const msgRes = await fetch(`${BASE}/messages/${myId}/${lawyer.lawyer_id}`);
+          const msgData = await msgRes.json();
+
+          if (msgData.length > 0) {
+            const lastMsg = msgData[msgData.length - 1];
+            newLastMessageTime[lawyer.lawyer_id] = lastMsg.created_at;
+
+            // count unread (messages from them that i haven't read yet)
+            const unreadCount = msgData.filter(
+              m => m.sender_id === lawyer.lawyer_id && 
+                   (!lastCountRef.current[lawyer.lawyer_id] || 
+                    new Date(m.created_at) > new Date(lastCountRef.current[lawyer.lawyer_id]))
+            ).length;
+
+            if (unreadCount > 0) {
+              newUnreadCounts[lawyer.lawyer_id] = (newUnreadCounts[lawyer.lawyer_id] || 0) + unreadCount;
+
+              // show notification if new message
+              if (!lastCountRef.current[lawyer.lawyer_id] || 
+                  new Date(lastMsg.created_at) > new Date(lastCountRef.current[lawyer.lawyer_id])) {
+                showNotification(lawyer, lastMsg);
+              }
+            }
+          }
+        }
+
+        setUnreadCounts(newUnreadCounts);
+        setLastMessageTime(newLastMessageTime);
+        lastCountRef.current = newLastMessageTime;
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    const interval = setInterval(checkNewMessages, 3000); // ← background check every 3s
+    return () => clearInterval(interval);
+  }, [myId, unreadCounts]);
+
+  const showNotification = (lawyer, message) => {
+    // only show if not currently in that conversation
+    if (selectedUser?.lawyer_id === lawyer.lawyer_id) return;
+
+    setNotification({
+      from: lawyer.name,
+      message: message.message.substring(0, 50) + (message.message.length > 50 ? '...' : ''),
+      lawyerId: lawyer.lawyer_id,
+    });
+
+    // play sound
+    if (notifSound && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {}); // silent fail if no permission
+    }
+
+    // auto-dismiss after 5 seconds
+    setTimeout(() => setNotification(null), 5000);
+  };
+
+  const markAsRead = (lawyerId) => {
+    setUnreadCounts(prev => {
+      const updated = { ...prev };
+      delete updated[lawyerId];
+      return updated;
+    });
+  };
+
   const fetchMessages = async () => {
+    if (!selectedUser) return;
     try {
       setLoading(true);
       const res = await fetch(`${BASE}/messages/${myId}/${selectedUser.lawyer_id}`);
       const data = await res.json();
       setMessages(data);
+      setLastMessageTime(prev => ({
+        ...prev,
+        [selectedUser.lawyer_id]: data.length > 0 ? data[data.length - 1].created_at : null
+      }));
     } catch (err) {
       console.error(err);
     } finally {
@@ -97,7 +189,14 @@ const Messages = () => {
     l.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  // group messages by date for display
+  // ── sort: by last message time (recent first) ──
+  const sortedLawyers = [...filteredLawyers].sort((a, b) => {
+    const timeA = lastMessageTime[a.lawyer_id] ? new Date(lastMessageTime[a.lawyer_id]) : new Date(0);
+    const timeB = lastMessageTime[b.lawyer_id] ? new Date(lastMessageTime[b.lawyer_id]) : new Date(0);
+    return timeB - timeA; // recent first
+  });
+
+  // group messages by date
   const groupedMessages = messages.reduce((groups, msg) => {
     const date = fmtDate(msg.created_at);
     if (!groups[date]) groups[date] = [];
@@ -111,6 +210,66 @@ const Messages = () => {
       style={{ background: '#0b1220', height: '100vh', overflow: 'hidden' }}
     >
 
+      {/* ── NOTIFICATION POPUP ────────────────────────────────── */}
+      {notification && (
+        <div
+          className="position-fixed top-0 start-50 translate-middle-x mt-3"
+          style={{
+            zIndex: 3000,
+            maxWidth: '380px',
+            animation: 'slideDown 0.3s ease-out'
+          }}
+        >
+          <div
+            className="rounded-4 p-3 shadow-lg cursor-pointer"
+            style={{
+              background: 'linear-gradient(135deg, #111827, #1f2937)',
+              border: '1px solid rgba(251,191,36,0.3)',
+              backdropFilter: 'blur(10px)'
+            }}
+            onClick={() => {
+              setSelectedUser(
+                lawyers.find(l => l.lawyer_id === notification.lawyerId)
+              );
+              setNotification(null);
+            }}
+          >
+            <div className="d-flex align-items-center gap-3">
+              <div
+                className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 fw-bold"
+                style={{
+                  width: 44, height: 44,
+                  background: 'rgba(251,191,36,0.15)',
+                  color: '#fbbf24',
+                  fontSize: '16px'
+                }}
+              >
+                {notification.from.charAt(0)}
+              </div>
+              <div className="flex-grow-1 overflow-hidden">
+                <div className="fw-bold text-white" style={{ fontSize: '14px' }}>
+                  {notification.from}
+                </div>
+                <div className="text-white-50" style={{ fontSize: '12px', marginTop: '2px' }}>
+                  {notification.message}
+                </div>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNotification(null);
+                }}
+                className="btn-close btn-close-white flex-shrink-0"
+                style={{ opacity: 0.5 }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AUDIO for notification sound */}
+      <audio ref={audioRef} src="data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA==" />
+
       {/* ── LEFT: CONTACTS PANEL ──────────────────────────────── */}
       <div
         className="d-flex flex-column flex-shrink-0"
@@ -122,11 +281,26 @@ const Messages = () => {
       >
         {/* PANEL HEADER */}
         <div className="p-3 pb-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="d-flex align-items-center gap-2 mb-3">
-            <div className="p-2 rounded-3" style={{ background: 'rgba(251,191,36,0.15)' }}>
-              <MessageSquare size={18} className="text-warning" />
+          <div className="d-flex align-items-center justify-content-between mb-3">
+            <div className="d-flex align-items-center gap-2">
+              <div className="p-2 rounded-3" style={{ background: 'rgba(251,191,36,0.15)' }}>
+                <MessageSquare size={18} className="text-warning" />
+              </div>
+              <h6 className="fw-bold mb-0">Messages</h6>
             </div>
-            <h6 className="fw-bold mb-0">Messages</h6>
+            {/* SOUND TOGGLE */}
+            <button
+              onClick={() => setNotifSound(!notifSound)}
+              className="btn btn-sm p-0"
+              style={{
+                background: 'none', border: 'none',
+                color: notifSound ? '#fbbf24' : 'rgba(255,255,255,0.3)',
+                cursor: 'pointer'
+              }}
+              title={notifSound ? 'Sound on' : 'Sound off'}
+            >
+              {notifSound ? <Bell size={16} /> : <BellOff size={16} />}
+            </button>
           </div>
 
           {/* SEARCH */}
@@ -148,16 +322,22 @@ const Messages = () => {
 
         {/* CONTACTS LIST */}
         <div className="flex-grow-1 overflow-y-auto py-2">
-          {filteredLawyers.map((lawyer) => {
+          {sortedLawyers.map((lawyer) => {
             const isMe     = role === 'lawyer' && lawyer.lawyer_id === myId;
             const isActive = selectedUser?.lawyer_id === lawyer.lawyer_id;
-            if (isMe) return null; // don't show yourself
+            const unreadCount = unreadCounts[lawyer.lawyer_id] || 0;
+
+            if (isMe) return null;
 
             return (
               <div
                 key={lawyer.lawyer_id}
-                onClick={() => { setSelectedUser(lawyer); setMessages([]); }}
-                className="d-flex align-items-center gap-3 px-3 py-3 cursor-pointer"
+                onClick={() => {
+                  setSelectedUser(lawyer);
+                  setMessages([]);
+                  markAsRead(lawyer.lawyer_id);
+                }}
+                className="d-flex align-items-center gap-3 px-3 py-3 position-relative"
                 style={{
                   background: isActive ? 'rgba(251,191,36,0.08)' : 'transparent',
                   borderLeft: isActive ? '3px solid #fbbf24' : '3px solid transparent',
@@ -165,8 +345,9 @@ const Messages = () => {
                   transition: 'all 0.15s'
                 }}
               >
+                {/* AVATAR */}
                 <div
-                  className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 fw-bold"
+                  className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 fw-bold position-relative"
                   style={{
                     width: 40, height: 40,
                     background: isActive ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.06)',
@@ -175,11 +356,40 @@ const Messages = () => {
                   }}
                 >
                   {lawyer.name.charAt(0)}
+
+                  {/* UNREAD BADGE */}
+                  {unreadCount > 0 && (
+                    <div
+                      className="position-absolute d-flex align-items-center justify-content-center fw-bold"
+                      style={{
+                        width: '20px', height: '20px',
+                        background: '#ef4444',
+                        color: 'white',
+                        borderRadius: '50%',
+                        bottom: '-2px', right: '-2px',
+                        fontSize: '10px',
+                        border: '2px solid #0b1220'
+                      }}
+                    >
+                      {unreadCount}
+                    </div>
+                  )}
                 </div>
-                <div className="overflow-hidden">
+
+                {/* INFO */}
+                <div className="overflow-hidden flex-grow-1">
                   <div className="fw-semibold small text-white text-truncate">{lawyer.name}</div>
                   <div className="text-white-50" style={{ fontSize: '11px' }}>{lawyer.specialization}</div>
                 </div>
+
+                {/* ONLINE INDICATOR */}
+                {isActive && (
+                  <div
+                    className="flex-shrink-0 rounded-circle"
+                    style={{ width: '8px', height: '8px', background: '#22c55e' }}
+                    title="Online"
+                  />
+                )}
               </div>
             );
           })}
@@ -238,7 +448,6 @@ const Messages = () => {
                         className="d-flex mb-2"
                         style={{ justifyContent: isMine ? 'flex-end' : 'flex-start' }}
                       >
-                        {/* AVATAR for received */}
                         {!isMine && (
                           <div
                             className="rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0 me-2"
@@ -253,7 +462,6 @@ const Messages = () => {
                         )}
 
                         <div style={{ maxWidth: '65%' }}>
-                          {/* BUBBLE */}
                           <div
                             className="px-3 py-2 rounded-4"
                             style={{
@@ -273,7 +481,6 @@ const Messages = () => {
                           >
                             {msg.message}
                           </div>
-                          {/* TIMESTAMP */}
                           <div
                             className="mt-1"
                             style={{
@@ -368,6 +575,10 @@ const Messages = () => {
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        @keyframes slideDown {
+          from { transform: translateY(-100px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
       `}</style>
     </div>
   );
