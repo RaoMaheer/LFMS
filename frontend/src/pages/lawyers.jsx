@@ -55,7 +55,7 @@ const Lawyers = () => {
   useEffect(() => {
     const fetchLawyers = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/law/lawyers');
+        const res = await axios.get('https://lfms-backend-dgpk.onrender.com/api/law/lawyers');
         setLawyers(res.data);
       } catch (err) {
         console.error(err);
