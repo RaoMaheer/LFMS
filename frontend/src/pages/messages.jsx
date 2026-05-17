@@ -48,13 +48,26 @@ const Messages = () => {
   // fetch messages when a contact is selected
   useEffect(() => {
     if (!selectedUser) return;
-    fetchMessages();
-    // mark as read when opening conversation
-    markAsRead(selectedUser.lawyer_id);
 
-    pollRef.current = setInterval(fetchMessages, 2000); // ← faster polling
+    const poll = async () => {
+      try {
+        const res = await fetch(`${BASE}/messages/${myId}/${selectedUser.lawyer_id}`);
+        const data = await res.json();
+        setMessages(data);
+        setLastMessageTime(prev => ({
+          ...prev,
+          [selectedUser.lawyer_id]: data.length > 0 ? data[data.length - 1].created_at : null
+        }));
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    poll();
+    markAsRead(selectedUser.lawyer_id);
+    pollRef.current = setInterval(poll, 2000);
     return () => clearInterval(pollRef.current);
-  }, [selectedUser]);
+  }, [selectedUser, myId]);
 
   // scroll to bottom
   useEffect(() => {
