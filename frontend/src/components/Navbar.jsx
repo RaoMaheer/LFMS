@@ -1,7 +1,10 @@
 import React from 'react';
 import { Search, Bell, User, Settings } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+
 
 const Navbar = () => {
+  const { role, user } = useSelector((s) => s.auth);
   return (
     <nav
       className="navbar navbar-expand-lg sticky-top px-4 py-3"
@@ -53,10 +56,10 @@ const Navbar = () => {
 
             <div className="text-end d-none d-sm-block">
               <p className="mb-0 fw-bold text-dark" style={{ fontSize: '0.9rem' }}>
-                Dexter Morgan
+                {user?.name || 'Dexter Morgan'}
               </p>
               <p className="mb-0 text-primary" style={{ fontSize: '0.75rem' }}>
-                Admin
+                {role.toUpperCase() || 'LAWYER'}
               </p>
             </div>
 

@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchCourtDates, addCourtDate, updateCourtDate, deleteCourtDate } from '../store/courtDatesSlice';
-import { Gavel, Plus, Edit, Trash2, X, Clock, Search, FileText } from 'lucide-react';
+import { Gavel, Plus, Edit, Trash2, X, Clock, Search, FileText, Filter } from 'lucide-react';
 
-// ✅ OUTSIDE component — plain function, no hooks
 const EMPTY_FORM = { case_id: '', court_name: '', date: '', notes: '' };
 
 const getDateStatus = (dateStr) => {
@@ -23,26 +22,29 @@ const formatDate = (dateStr) =>
 const formatTime = (dateStr) =>
   new Date(dateStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-// ✅ Component starts here — ALL hooks inside this function
 const CourtDates = () => {
   const dispatch = useDispatch();
   const { items: courtDates, loading, error } = useSelector((state) => state.courtDates);
+  const { role } = useSelector((s) => s.auth);
+  const isAdmin = role === 'admin';
 
-  const [search,    setSearch]    = useState('');
-  const [filter,    setFilter]    = useState('all');
-  const [showModal, setShowModal] = useState(false);
-  const [editMode,  setEditMode]  = useState(false);
-  const [currentId, setCurrentId] = useState(null);
-  const [formData,  setFormData]  = useState(EMPTY_FORM);
+  const [search,       setSearch]       = useState('');
+  const [filter,       setFilter]       = useState('all');
+  const [filterCaseId, setFilterCaseId] = useState('');
+  const [showModal,    setShowModal]    = useState(false);
+  const [editMode,     setEditMode]     = useState(false);
+  const [currentId,    setCurrentId]    = useState(null);
+  const [formData,     setFormData]     = useState(EMPTY_FORM);
 
   useEffect(() => { dispatch(fetchCourtDates()); }, [dispatch]);
 
   const filtered = courtDates.filter((d) => {
-    const matchSearch = d.court_name?.toLowerCase().includes(search.toLowerCase()) ||
-                        d.notes?.toLowerCase().includes(search.toLowerCase());
-    const status = getDateStatus(d.date).label;
-    const matchFilter = filter === 'all' || status === filter;
-    return matchSearch && matchFilter;
+    const matchSearch  = d.court_name?.toLowerCase().includes(search.toLowerCase()) ||
+                         d.notes?.toLowerCase().includes(search.toLowerCase());
+    const status       = getDateStatus(d.date).label;
+    const matchFilter  = filter === 'all' || status === filter;
+    const matchCase    = filterCaseId === '' || String(d.case_id) === filterCaseId.trim();
+    return matchSearch && matchFilter && matchCase;
   });
 
   const sorted = [...filtered].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -75,9 +77,7 @@ const CourtDates = () => {
       }
       setShowModal(false);
       setFormData(EMPTY_FORM);
-    } catch {
-      alert('Operation failed');
-    }
+    } catch { alert('Operation failed'); }
   };
 
   const handleDelete = async (id) => {
@@ -107,13 +107,13 @@ const CourtDates = () => {
           </div>
           <small className="text-white-50 ms-1">Schedule and manage all upcoming hearings</small>
         </div>
-        <button
-          onClick={() => openModal()}
-          className="btn fw-bold d-flex align-items-center gap-2 rounded-pill px-4 py-2"
-          style={{ background: '#fbbf24', color: '#0b1220' }}
-        >
-          <Plus size={18} /> Schedule Hearing
-        </button>
+        {isAdmin && (
+          <button onClick={() => openModal()}
+            className="btn fw-bold d-flex align-items-center gap-2 rounded-pill px-4 py-2"
+            style={{ background: '#fbbf24', color: '#0b1220' }}>
+            <Plus size={18} /> Schedule Hearing
+          </button>
+        )}
       </div>
 
       {/* STATS */}
@@ -133,27 +133,16 @@ const CourtDates = () => {
         ))}
       </div>
 
-      {/* SEARCH + FILTER */}
-      <div className="d-flex flex-wrap gap-3 mb-4">
-        <div
-          className="d-flex align-items-center px-3 py-2 rounded-pill flex-grow-1"
-          style={{
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            maxWidth: '380px'
-          }}
-        >
+      {/* SEARCH + DATE FILTER */}
+      <div className="d-flex flex-wrap gap-3 mb-3">
+        <div className="d-flex align-items-center px-3 py-2 rounded-pill flex-grow-1"
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', maxWidth: '380px' }}>
           <Search size={15} className="text-white-50" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search court or notes..."
             className="form-control bg-transparent border-0 text-white shadow-none ms-2 p-0"
-            style={{ fontSize: '14px' }}
-          />
+            style={{ fontSize: '14px' }} />
         </div>
-
         <div className="d-flex gap-2 flex-wrap">
           {['all', 'Today', 'This Week', 'This Month', 'Upcoming', 'Past'].map((f) => (
             <button key={f} onClick={() => setFilter(f)}
@@ -163,13 +152,41 @@ const CourtDates = () => {
                 color:      filter === f ? '#0b1220'  : 'rgba(255,255,255,0.6)',
                 border: 'none', fontSize: '12px'
               }}>
-              {f}
+              {f === 'all' ? 'All' : f}
             </button>
           ))}
         </div>
       </div>
 
-      {/* LOADING / ERROR */}
+      {/* CASE ID FILTER */}
+      <div className="d-flex flex-wrap gap-3 mb-4 align-items-center">
+        <div className="d-flex align-items-center gap-2">
+          <Filter size={14} className="text-white-50" />
+          <span className="small text-white-50 fw-semibold">Filter by ID:</span>
+        </div>
+        <div className="d-flex align-items-center px-3 py-2 rounded-pill"
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', width: '160px' }}>
+          <Gavel size={13} className="text-white-50 flex-shrink-0" />
+          <input type="number" value={filterCaseId}
+            onChange={(e) => setFilterCaseId(e.target.value)}
+            placeholder="Case ID"
+            className="form-control bg-transparent border-0 text-white shadow-none ms-2 p-0"
+            style={{ fontSize: '13px' }} />
+        </div>
+        {filterCaseId !== '' && (
+          <>
+            <button onClick={() => setFilterCaseId('')}
+              className="btn btn-sm rounded-pill px-3 d-flex align-items-center gap-1"
+              style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)', fontSize: '12px' }}>
+              <X size={12} /> Clear
+            </button>
+            <span className="small text-white-50">
+              Showing <span className="text-white fw-semibold">{sorted.length}</span> result{sorted.length !== 1 ? 's' : ''}
+            </span>
+          </>
+        )}
+      </div>
+
       {loading && <div className="text-center py-5 text-white-50">Loading court dates...</div>}
       {error   && <div className="alert alert-danger">{typeof error === 'string' ? error : 'Something went wrong'}</div>}
 
@@ -180,18 +197,10 @@ const CourtDates = () => {
             const s = getDateStatus(item.date);
             return (
               <div className="col-12 col-md-6 col-xl-4" key={item.court_date_id}>
-                <div
-                  className="rounded-4 h-100 d-flex flex-column overflow-hidden"
-                  style={{
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.07)',
-                  }}
-                >
+                <div className="rounded-4 h-100 d-flex flex-column overflow-hidden"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                   <div style={{ height: '3px', background: s.accent }} />
-
                   <div className="p-4 d-flex flex-column flex-grow-1">
-
-                    {/* TOP ROW */}
                     <div className="d-flex justify-content-between align-items-start mb-3">
                       <div className="d-flex align-items-center gap-2">
                         <div className="p-2 rounded-3" style={{ background: `${s.accent}22` }}>
@@ -204,11 +213,7 @@ const CourtDates = () => {
                         {s.label}
                       </span>
                     </div>
-
-                    {/* COURT NAME */}
                     <h5 className="fw-bold mb-3" style={{ lineHeight: 1.3 }}>{item.court_name}</h5>
-
-                    {/* DATE BLOCK */}
                     <div className="rounded-3 p-3 mb-3 d-flex align-items-center gap-3"
                       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
                       <div className="text-center px-3 py-2 rounded-3"
@@ -227,37 +232,26 @@ const CourtDates = () => {
                         </div>
                       </div>
                     </div>
-
-                    {/* NOTES */}
                     {item.notes && (
                       <div className="d-flex gap-2 mb-4">
                         <FileText size={14} className="text-white-50 mt-1 flex-shrink-0" />
-                        <p className="text-white-50 small mb-0" style={{ lineHeight: 1.6 }}>
-                          {item.notes}
-                        </p>
+                        <p className="text-white-50 small mb-0" style={{ lineHeight: 1.6 }}>{item.notes}</p>
                       </div>
                     )}
-
-                    {/* ACTIONS */}
-                    <div className="d-flex gap-2 mt-auto">
-                      <button onClick={() => openModal(item)}
-                        className="btn btn-sm flex-grow-1 rounded-pill fw-bold"
-                        style={{
-                          background: 'rgba(59,130,246,0.12)', color: '#60a5fa',
-                          border: '1px solid rgba(59,130,246,0.2)', fontSize: '13px'
-                        }}>
-                        <Edit size={13} className="me-1" /> Edit
-                      </button>
-                      <button onClick={() => handleDelete(item.court_date_id)}
-                        className="btn btn-sm rounded-pill"
-                        style={{
-                          background: 'rgba(239,68,68,0.12)', color: '#f87171',
-                          border: '1px solid rgba(239,68,68,0.2)', padding: '6px 14px'
-                        }}>
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-
+                    {isAdmin && (
+                      <div className="d-flex gap-2 mt-auto">
+                        <button onClick={() => openModal(item)}
+                          className="btn btn-sm flex-grow-1 rounded-pill fw-bold"
+                          style={{ background: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.2)', fontSize: '13px' }}>
+                          <Edit size={13} className="me-1" /> Edit
+                        </button>
+                        <button onClick={() => handleDelete(item.court_date_id)}
+                          className="btn btn-sm rounded-pill"
+                          style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)', padding: '6px 14px' }}>
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -269,14 +263,10 @@ const CourtDates = () => {
       )}
 
       {/* MODAL */}
-      {showModal && (
+      {showModal && isAdmin && (
         <div className="modal-overlay d-flex align-items-center justify-content-center">
           <div className="p-4 text-white"
-            style={{
-              background: '#111827', width: '460px', borderRadius: '20px',
-              border: '1px solid rgba(255,255,255,0.1)', maxHeight: '90vh', overflowY: 'auto'
-            }}>
-
+            style={{ background: '#111827', width: '460px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="d-flex justify-content-between align-items-center mb-4">
               <div className="d-flex align-items-center gap-2">
                 <div className="p-2 rounded-3" style={{ background: 'rgba(251,191,36,0.15)' }}>
@@ -286,70 +276,50 @@ const CourtDates = () => {
               </div>
               <X style={{ cursor: 'pointer' }} onClick={() => setShowModal(false)} />
             </div>
-
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
                 <label className="small text-white-50 mb-1">Case ID</label>
-                <input type="number" required
-                  value={formData.case_id}
+                <input type="number" required value={formData.case_id}
                   onChange={(e) => setFormData({ ...formData, case_id: e.target.value })}
-                  className="form-control bg-dark border-secondary text-white"
-                  style={{ borderRadius: '10px' }}
-                />
+                  className="form-control bg-dark border-secondary text-white" style={{ borderRadius: '10px' }} />
               </div>
               <div className="mb-3">
                 <label className="small text-white-50 mb-1">Court Name</label>
-                <input type="text" required
-                  value={formData.court_name}
+                <input type="text" required value={formData.court_name}
                   onChange={(e) => setFormData({ ...formData, court_name: e.target.value })}
                   placeholder="e.g. U.S. District Court (SDNY)"
-                  className="form-control bg-dark border-secondary text-white"
-                  style={{ borderRadius: '10px' }}
-                />
+                  className="form-control bg-dark border-secondary text-white" style={{ borderRadius: '10px' }} />
               </div>
               <div className="mb-3">
                 <label className="small text-white-50 mb-1">Date & Time</label>
-                <input type="datetime-local" required
-                  value={formData.date}
+                <input type="datetime-local" required value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   className="form-control bg-dark border-secondary text-white"
-                  style={{ borderRadius: '10px', colorScheme: 'dark' }}
-                />
+                  style={{ borderRadius: '10px', colorScheme: 'dark' }} />
               </div>
               <div className="mb-4">
                 <label className="small text-white-50 mb-1">Notes</label>
-                <textarea rows={3}
-                  value={formData.notes}
+                <textarea rows={3} value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   placeholder="Add hearing notes..."
                   className="form-control bg-dark border-secondary text-white"
-                  style={{ borderRadius: '10px', resize: 'none' }}
-                />
+                  style={{ borderRadius: '10px', resize: 'none' }} />
               </div>
-              <button type="submit"
-                className="btn w-100 py-2 fw-bold rounded-pill"
+              <button type="submit" className="btn w-100 py-2 fw-bold rounded-pill"
                 style={{ background: '#fbbf24', color: '#0b1220' }}>
                 {editMode ? 'Save Changes' : 'Schedule Hearing'}
               </button>
             </form>
-
           </div>
         </div>
       )}
 
       <style>{`
-        .modal-overlay {
-          position: fixed; inset: 0;
-          background: rgba(0,0,0,0.8);
-          z-index: 2000; backdrop-filter: blur(5px);
-        }
-        .form-control:focus {
-          box-shadow: none;
-          border-color: rgba(251,191,36,0.4) !important;
-        }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; backdrop-filter: blur(5px); }
+        .form-control:focus { box-shadow: none; border-color: rgba(251,191,36,0.4) !important; }
         .form-control::placeholder { color: rgba(255,255,255,0.3); }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
       `}</style>
-
     </div>
   );
 };

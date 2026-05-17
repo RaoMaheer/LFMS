@@ -1,5 +1,6 @@
 import express from 'express';
-import {login, updateCase, deleteCase,addCase ,deleteAppointment,updateAppointment,createLawyer, createClient, createAppointment, updateClient, updateCourtDate, updateLawyer, deleteClient, deleteLawyer, getlawyers, getPayments, getLawyersRevenue, getCourtDates, getDashboardData, getClients, getCases, getAppointments, getClosedCases, getOpenCases, getTotalCases, getPendingCases, deleteCourtDate, addCourtDate, updatePayment, deletePayment, addPayment } from '../controllers/lawController.js';
+import { getRevenuePerLawyer,updateCase, deleteCase,addCase ,deleteAppointment,updateAppointment,createLawyer, createClient, createAppointment, updateClient, updateCourtDate, updateLawyer, deleteClient, deleteLawyer, getlawyers, getPayments, getLawyersRevenue, getCourtDates, getDashboardData, getClients, getCases, getAppointments, getClosedCases, getOpenCases, getTotalCases, getPendingCases, deleteCourtDate, addCourtDate, updatePayment, deletePayment, addPayment } from '../controllers/lawController.js';
+import { login } from '../controllers/authController.js';
 const router = express.Router();
 
 // Example route to get all laws
@@ -42,5 +43,7 @@ router.delete('/payments/:id', deletePayment);
 router.put('/courtDates/:id', updateCourtDate);
 router.post('/courtDates', addCourtDate);
 router.delete('/courtDates/:id', deleteCourtDate);
+
+router.get('/revenueperlawyer', getRevenuePerLawyer)
 
 export default router;

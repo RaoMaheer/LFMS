@@ -23,6 +23,8 @@ const Login = () => {
     });
   };
 
+ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000"
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -39,12 +41,18 @@ const Login = () => {
       const data = await response.json();
 
       if (data.success) {
-        localStorage.setItem('token', data.token);
-        dispatch(setCredentials({ token: data.token, user: data.user }));
-        navigate('/dashboard', { replace: true });
-      } else {
-        setError(data.message || 'Invalid credentials');
-      }
+  localStorage.setItem('token', data.token);
+  dispatch(setCredentials({ token: data.token, role: data.role, user: data.user }));
+
+  // redirect based on role
+  if (data.role === 'admin') {
+    navigate('/dashboard', { replace: true });
+  } else {
+    navigate('/messages', { replace: true }); // lawyers land on messages
+  }
+} else {
+  setError(data.message || 'Invalid credentials');
+}
     } catch (err) {
       setError('Backend server is offline');
     }

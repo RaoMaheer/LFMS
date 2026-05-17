@@ -4,7 +4,8 @@ import clientReducer from './clientSlice'; // 1. Import your new slice
 import casesReducer from './casesSlice';
 import CourtDatesReducer from './courtDatesSlice';
 import appointmentsReducer from './appointmentsSlice';
-import paymentsReducer from './paymentsSlice'
+import paymentsReducer from './paymentsSlice';
+import revenueReducer from './revperlawyer';
 
 export const store = configureStore({
   reducer: {
@@ -14,5 +15,6 @@ export const store = configureStore({
     courtDates: CourtDatesReducer, // 3. Add this key!
     appointments: appointmentsReducer, 
     payments: paymentsReducer,
+    revperlawyer: revenueReducer,
   },
 });

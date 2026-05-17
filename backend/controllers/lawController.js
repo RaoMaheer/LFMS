@@ -2,19 +2,48 @@ import pool from '../config/db.js';
 
 
 
-export const login = async (req, res) => {
-    const { name, password } = req.body;
+// export const login = async (req, res) => {
+//     const { name, password } = req.body;
     
-    // For a term project, you can check against hardcoded credentials 
-    // or query an 'admin' table.
-    if (name === 'admin' && password === 'specter123') {
-        res.json({ success: true, token: 'fake-jwt-token', user: 'Harvey Specter' });
-    } else {
-        res.status(401).json({ success: false, message: 'Invalid Credentials' });
+//     // For a term project, you can check against hardcoded credentials 
+//     // or query an 'admin' table.
+//     if (name === 'admin' && password === 'specter123') {
+//         res.json({ success: true, token: 'fake-jwt-token', user: 'Harvey Specter' });
+//     } else {
+//         res.status(401).json({ success: false, message: 'Invalid Credentials' });
+//     }
+// };
+
+export const getRevenuePerLawyer = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        l.name, 
+        COUNT(DISTINCT c.case_id) AS cases, 
+        COALESCE(SUM(p.amount), 0) AS total
+      FROM lawyers l
+      LEFT JOIN cases c ON l.lawyer_id = c.lawyer_id
+      LEFT JOIN payments p ON c.case_id = p.case_id
+      GROUP BY l.lawyer_id, l.name
+      ORDER BY total DESC`
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "No revenue records found" });
     }
+
+    // Ensure numeric types are handled correctly
+    const data = result.rows.map(row => ({
+      ...row,
+      total: parseFloat(row.total),
+      cases: parseInt(row.cases)
+    }));
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
-
-
 export const getlawyers = async (req, res) => {
     try {
         const result = await pool.query("SELECT * FROM lawyers");
