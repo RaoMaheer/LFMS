@@ -22,9 +22,10 @@ app.get('/debug', (req, res) => {
 });
 
 // Simple Test Route to check DB connection
+app.use('/api/law/messages', messageRoutes);
+
 app.use('/api/law', lawRoutes);
 
-app.use('/api/law/messages', messageRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
