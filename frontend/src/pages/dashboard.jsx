@@ -39,7 +39,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/law/dashboard');
+        const res = await axios.get('https://lfms-backend-dgpk.onrender.com/api/law/dashboard');
         setStats(prev => ({ ...prev, ...res.data }));
       } catch (err) {
         console.error('Error loading dashboard data', err);
