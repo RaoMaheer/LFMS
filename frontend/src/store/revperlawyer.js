@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
 // Matches your specific endpoint
-const API_URL = 'http://localhost:5000/api/law/revenueperlawyer';
+const API_URL = 'https://lfms-backend-dgpk.onrender.com/api/law/revenueperlawyer';
 
 export const fetchRevenuePerLawyer = createAsyncThunk('revperlawyer/fetch', async (_, thunkAPI) => {
   try {

@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
-const BASE_URL = 'http://localhost:5000/api/law';
+const BASE_URL = 'https://lfms-backend-dgpk.onrender.com/api/law';
 
 // FETCH ALL
 export const fetchCourtDates = createAsyncThunk('courtDates/fetchAll', async (_, thunkAPI) => {

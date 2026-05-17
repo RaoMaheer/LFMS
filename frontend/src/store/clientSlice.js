@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api/law/clients';
+const API_URL = 'https://lfms-backend-dgpk.onrender.com/api/law/clients';
 
 // FETCH CLIENTS
 export const fetchClients = createAsyncThunk(

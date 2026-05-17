@@ -5,7 +5,7 @@ import {
   User, Clock, Bell, BellOff
 } from 'lucide-react';
 
-const BASE = 'http://localhost:5000/api/law';
+const BASE = 'https://lfms-backend-dgpk.onrender.com/api/law';
 
 const fmtTime = (d) =>
   new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });

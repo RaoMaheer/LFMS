@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
-const BASE_URL = 'http://localhost:5000/api/law';
+const BASE_URL = 'https://lfms-backend-dgpk.onrender.com/api/law';
 
 export const fetchPayments = createAsyncThunk('payments/fetchAll', async (_, thunkAPI) => {
   try {
