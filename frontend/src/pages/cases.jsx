@@ -6,6 +6,8 @@ import {
   X, Calendar, User, Scale, Clock, FileText, Filter
 } from 'lucide-react';
 
+const BASE_URL = 'https://lfms-backend-dgpk.onrender.com/api/law';
+
 const STATUS_STYLES = {
   open:     { bg: 'rgba(34,197,94,0.12)',  color: '#22c55e', label: 'Open'     },
   closed:   { bg: 'rgba(239,68,68,0.12)',  color: '#f87171', label: 'Closed'   },
@@ -34,6 +36,13 @@ const Cases = () => {
   const [formData,       setFormData]       = useState(EMPTY_FORM);
   const [descModal,      setDescModal]      = useState(false);
   const [descCase,       setDescCase]       = useState(null);
+
+  // Documents state
+  const [docsModal,   setDocsModal]   = useState(false);
+  const [docsCase,    setDocsCase]    = useState(null);
+  const [documents,   setDocuments]   = useState([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [uploading,   setUploading]   = useState(false);
 
   useEffect(() => { dispatch(fetchCases()); }, [dispatch]);
 
@@ -86,6 +95,66 @@ const Cases = () => {
   const viewDescription = (caseItem) => {
     setDescCase(caseItem);
     setDescModal(true);
+  };
+
+  // Documents functions
+  const openDocs = async (caseItem) => {
+    setDocsCase(caseItem);
+    setDocuments([]);
+    setDocsModal(true);
+    fetchDocuments(caseItem.case_id);
+  };
+
+  const fetchDocuments = async (caseId) => {
+    setDocsLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/cases/${caseId}/documents`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await res.json();
+      setDocuments(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDocsLoading(false);
+    }
+  };
+
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('uploaded_by', 'Admin');
+    try {
+      const res = await fetch(`${BASE_URL}/cases/${docsCase.case_id}/documents`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: formData
+      });
+      const data = await res.json();
+      setDocuments(prev => [data, ...prev]);
+    } catch (err) {
+      console.error(err);
+      alert('Upload failed');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDeleteDoc = async (documentId) => {
+    if (!window.confirm('Delete this document?')) return;
+    try {
+      await fetch(`${BASE_URL}/cases/documents/${documentId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setDocuments(prev => prev.filter(d => d.document_id !== documentId));
+    } catch (err) {
+      alert('Delete failed');
+    }
   };
 
   const hasIdFilters = filterClientId !== '' || filterLawyerId !== '';
@@ -250,6 +319,15 @@ const Cases = () => {
                         <span>Updated: <span className="text-white">{formatDate(c.updated_at)}</span></span>
                       </div>
                     </div>
+
+                    {/* DOCUMENTS BUTTON — visible to all */}
+                    <button onClick={() => openDocs(c)}
+                      className="btn btn-sm w-100 rounded-pill fw-bold mb-2"
+                      style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)', fontSize: '13px' }}>
+                      <FileText size={13} className="me-1" /> Documents
+                    </button>
+
+                    {/* EDIT / DELETE — admin only */}
                     {isAdmin && (
                       <div className="d-flex gap-2">
                         <button onClick={() => openModal(c)}
@@ -307,6 +385,96 @@ const Cases = () => {
               <div className="d-flex align-items-center gap-1"><Calendar size={13} /> Filed: <span className="text-white ms-1">{formatDate(descCase.created_at)}</span></div>
             </div>
             <button onClick={() => setDescModal(false)} className="btn w-100 py-2 fw-bold rounded-pill"
+              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* DOCUMENTS MODAL */}
+      {docsModal && docsCase && (
+        <div className="modal-overlay d-flex align-items-center justify-content-center">
+          <div className="p-4 text-white"
+            style={{ background: '#111827', width: '560px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '85vh', overflowY: 'auto' }}>
+
+            {/* HEADER */}
+            <div className="d-flex justify-content-between align-items-start mb-4">
+              <div className="d-flex align-items-start gap-3">
+                <div className="p-2 rounded-3 flex-shrink-0" style={{ background: 'rgba(251,191,36,0.15)' }}>
+                  <FileText size={18} className="text-warning" />
+                </div>
+                <div>
+                  <h5 className="mb-1 fw-bold">Case Documents</h5>
+                  <small className="text-white-50">{docsCase.title}</small>
+                </div>
+              </div>
+              <X style={{ cursor: 'pointer', flexShrink: 0 }} onClick={() => setDocsModal(false)} />
+            </div>
+
+            <div style={{ height: '1px', background: 'rgba(255,255,255,0.07)', marginBottom: '1.2rem' }} />
+
+            {/* UPLOAD — admin only */}
+            {isAdmin && (
+              <div className="mb-4">
+                <label className="btn w-100 py-3 rounded-3 d-flex align-items-center justify-content-center gap-2 fw-bold"
+                  style={{
+                    background: 'rgba(251,191,36,0.06)',
+                    color: uploading ? 'rgba(251,191,36,0.4)' : '#fbbf24',
+                    border: '2px dashed rgba(251,191,36,0.25)',
+                    cursor: uploading ? 'not-allowed' : 'pointer',
+                    fontSize: '14px'
+                  }}>
+                  <Plus size={16} />
+                  {uploading ? 'Uploading...' : 'Click to Upload Document'}
+                  <input type="file" className="d-none" onChange={handleUpload} disabled={uploading}
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt" />
+                </label>
+              </div>
+            )}
+
+            {/* DOCUMENTS LIST */}
+            {docsLoading ? (
+              <div className="text-center py-4 text-white-50">Loading documents...</div>
+            ) : documents.length === 0 ? (
+              <div className="text-center py-5 text-white-50">
+                <FileText size={32} className="mb-3 opacity-25" />
+                <div>No documents attached to this case</div>
+              </div>
+            ) : (
+              <div className="d-flex flex-column gap-3">
+                {documents.map((doc) => (
+                  <div key={doc.document_id} className="d-flex align-items-center gap-3 p-3 rounded-3"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    <div className="p-2 rounded-3 flex-shrink-0" style={{ background: 'rgba(251,191,36,0.1)' }}>
+                      <FileText size={16} className="text-warning" />
+                    </div>
+                    <div className="flex-grow-1 overflow-hidden">
+                      <div className="fw-semibold small text-truncate">{doc.file_name}</div>
+                      <div className="text-white-50" style={{ fontSize: '11px' }}>
+                        Uploaded by {doc.uploaded_by} · {new Date(doc.uploaded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </div>
+                    </div>
+                    <div className="d-flex gap-2 flex-shrink-0">
+                      <a href={doc.file_url} target="_blank" rel="noreferrer"
+                        className="btn btn-sm rounded-pill fw-bold"
+                        style={{ background: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)', fontSize: '12px', padding: '5px 12px' }}>
+                        Download
+                      </a>
+                      {isAdmin && (
+                        <button onClick={() => handleDeleteDoc(doc.document_id)}
+                          className="btn btn-sm rounded-pill"
+                          style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)', padding: '5px 10px' }}>
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button onClick={() => setDocsModal(false)} className="btn w-100 py-2 fw-bold rounded-pill mt-4"
               style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.1)' }}>
               Close
             </button>
