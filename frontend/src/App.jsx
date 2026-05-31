@@ -15,7 +15,7 @@ import Payments     from './pages/payments';
 import Appointments from './pages/appointments';
 import RevPerLawyer from './pages/revperlawyer';
 import Messages     from './pages/messages';         // ← NEW
-
+import { ThemeProvider } from './context/ThemeContext';
 // ── Guards ───────────────────────────────────────────────────────────────────
 
 const ProtectedRoute = ({ children }) => {
