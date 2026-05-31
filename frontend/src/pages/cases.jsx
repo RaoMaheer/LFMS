@@ -37,7 +37,6 @@ const Cases = () => {
   const [descModal,      setDescModal]      = useState(false);
   const [descCase,       setDescCase]       = useState(null);
 
-  // Documents state
   const [docsModal,   setDocsModal]   = useState(false);
   const [docsCase,    setDocsCase]    = useState(null);
   const [documents,   setDocuments]   = useState([]);
@@ -97,7 +96,6 @@ const Cases = () => {
     setDescModal(true);
   };
 
-  // Documents functions
   const openDocs = async (caseItem) => {
     setDocsCase(caseItem);
     setDocuments([]);
@@ -124,14 +122,14 @@ const Cases = () => {
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('uploaded_by', 'Admin');
+    const form = new FormData();
+    form.append('file', file);
+    form.append('uploaded_by', 'Admin');
     try {
       const res = await fetch(`${BASE_URL}/cases/${docsCase.case_id}/documents`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: formData
+        body: form
       });
       const data = await res.json();
       setDocuments(prev => [data, ...prev]);
@@ -320,23 +318,23 @@ const Cases = () => {
                       </div>
                     </div>
 
-                    {/* DOCUMENTS BUTTON — visible to all */}
+                    {/* DOCUMENTS BUTTON */}
                     <button onClick={() => openDocs(c)}
-                      className="btn btn-sm w-100 rounded-pill fw-bold mb-2"
-                      style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)', fontSize: '13px' }}>
-                      <FileText size={13} className="me-1" /> Documents
+                      className="btn btn-sm rounded-pill fw-bold mb-2 d-flex align-items-center justify-content-center gap-2"
+                      style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)', fontSize: '13px', width: '100%' }}>
+                      <FileText size={13} /> Documents
                     </button>
 
                     {/* EDIT / DELETE — admin only */}
                     {isAdmin && (
                       <div className="d-flex gap-2">
                         <button onClick={() => openModal(c)}
-                          className="btn btn-sm flex-grow-1 rounded-pill fw-bold"
+                          className="btn btn-sm flex-grow-1 rounded-pill fw-bold d-flex align-items-center justify-content-center gap-1"
                           style={{ background: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.2)', fontSize: '13px' }}>
-                          <Edit size={13} className="me-1" /> Edit
+                          <Edit size={13} /> Edit
                         </button>
                         <button onClick={() => handleDelete(c.case_id)}
-                          className="btn btn-sm rounded-pill"
+                          className="btn btn-sm rounded-pill d-flex align-items-center justify-content-center"
                           style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)', padding: '6px 14px' }}>
                           <Trash2 size={13} />
                         </button>
@@ -397,8 +395,6 @@ const Cases = () => {
         <div className="modal-overlay d-flex align-items-center justify-content-center">
           <div className="p-4 text-white"
             style={{ background: '#111827', width: '560px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '85vh', overflowY: 'auto' }}>
-
-            {/* HEADER */}
             <div className="d-flex justify-content-between align-items-start mb-4">
               <div className="d-flex align-items-start gap-3">
                 <div className="p-2 rounded-3 flex-shrink-0" style={{ background: 'rgba(251,191,36,0.15)' }}>
@@ -417,13 +413,14 @@ const Cases = () => {
             {/* UPLOAD — admin only */}
             {isAdmin && (
               <div className="mb-4">
-                <label className="btn w-100 py-3 rounded-3 d-flex align-items-center justify-content-center gap-2 fw-bold"
+                <label className="w-100 py-3 rounded-3 d-flex align-items-center justify-content-center gap-2 fw-bold"
                   style={{
                     background: 'rgba(251,191,36,0.06)',
                     color: uploading ? 'rgba(251,191,36,0.4)' : '#fbbf24',
                     border: '2px dashed rgba(251,191,36,0.25)',
                     cursor: uploading ? 'not-allowed' : 'pointer',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    borderRadius: '12px'
                   }}>
                   <Plus size={16} />
                   {uploading ? 'Uploading...' : 'Click to Upload Document'}
@@ -463,7 +460,7 @@ const Cases = () => {
                       </a>
                       {isAdmin && (
                         <button onClick={() => handleDeleteDoc(doc.document_id)}
-                          className="btn btn-sm rounded-pill"
+                          className="btn btn-sm rounded-pill d-flex align-items-center justify-content-center"
                           style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)', padding: '5px 10px' }}>
                           <Trash2 size={13} />
                         </button>
