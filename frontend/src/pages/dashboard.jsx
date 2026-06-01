@@ -5,6 +5,7 @@ import {
   CreditCard, UserPlus, Activity
 } from 'lucide-react';
 import axios from 'axios';
+import { useTheme } from '../context/ThemeContext';
 
 const BASE = 'https://lfms-backend-dgpk.onrender.com/api/law';
 
@@ -40,99 +41,58 @@ const timeAgo = (d) => {
 };
 
 const Dashboard = () => {
-  const [stats,      setStats]      = useState({
-    total: 0, open: 0, pending: 0, closed: 0,
-    revenue: 0, totalClients: 0, appointments: 0, courtDates: 0
-  });
+  const { isDark } = useTheme();
+
+  const bg        = isDark ? '#0b1220' : '#f1f5f9';
+  const cardBg    = isDark ? 'rgba(255,255,255,0.03)' : '#ffffff';
+  const cardBorder= isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)';
+  const textMain  = isDark ? 'white' : '#1e293b';
+  const textSub   = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)';
+  const innerBg   = isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc';
+  const innerBorder=isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
+  const divider   = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
+
+  const [stats,      setStats]      = useState({ total: 0, open: 0, pending: 0, closed: 0, revenue: 0, totalClients: 0, appointments: 0, courtDates: 0 });
   const [courtDates, setCourtDates] = useState([]);
   const [activity,   setActivity]   = useState([]);
   const [loadingCD,  setLoadingCD]  = useState(true);
   const [loadingAct, setLoadingAct] = useState(true);
 
   useEffect(() => {
-    axios.get(`${BASE}/dashboard`)
-      .then(res => setStats(prev => ({ ...prev, ...res.data })))
-      .catch(console.error);
+    axios.get(`${BASE}/dashboard`).then(res => setStats(prev => ({ ...prev, ...res.data }))).catch(console.error);
   }, []);
 
   useEffect(() => {
     axios.get(`${BASE}/courtdates`)
       .then(res => {
-        const sorted = res.data
-          .filter(d => new Date(d.date) >= new Date())
-          .sort((a, b) => new Date(a.date) - new Date(b.date))
-          .slice(0, 6);
+        const sorted = res.data.filter(d => new Date(d.date) >= new Date()).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 6);
         setCourtDates(sorted);
       })
-      .catch(console.error)
-      .finally(() => setLoadingCD(false));
+      .catch(console.error).finally(() => setLoadingCD(false));
   }, []);
 
   useEffect(() => {
     const buildFeed = async () => {
       try {
         const [casesRes, clientsRes, paymentsRes, apptRes] = await Promise.all([
-          axios.get(`${BASE}/cases`),
-          axios.get(`${BASE}/clients`),
-          axios.get(`${BASE}/payments`),
-          axios.get(`${BASE}/appointments`),
+          axios.get(`${BASE}/cases`), axios.get(`${BASE}/clients`),
+          axios.get(`${BASE}/payments`), axios.get(`${BASE}/appointments`),
         ]);
-
         const feed = [];
-
-        casesRes.data.slice(-4).forEach(c => feed.push({
-          id:    `case-${c.case_id}`,
-          icon:  Briefcase,
-          color: '#60a5fa',
-          bg:    'rgba(59,130,246,0.12)',
-          text:  `Case "${c.title}" — ${c.status}`,
-          sub:   `Case #${c.case_id}`,
-          time:  c.created_at,
-        }));
-
-        clientsRes.data.slice(-3).forEach(c => feed.push({
-          id:    `client-${c.client_id}`,
-          icon:  UserPlus,
-          color: '#22c55e',
-          bg:    'rgba(34,197,94,0.12)',
-          text:  `New client registered: ${c.name}`,
-          sub:   c.email,
-          time:  c.created_at,
-        }));
-
-        paymentsRes.data.slice(-3).forEach(p => feed.push({
-          id:    `pay-${p.payment_id}`,
-          icon:  CreditCard,
-          color: p.payment_status === 'Completed' ? '#22c55e' : '#fbbf24',
-          bg:    p.payment_status === 'Completed' ? 'rgba(34,197,94,0.12)' : 'rgba(251,191,36,0.12)',
-          text:  `Payment of $${Number(p.amount).toLocaleString()} — ${p.payment_status}`,
-          sub:   `Case #${p.case_id} · ${p.payment_method}`,
-          time:  p.payment_date,
-        }));
-
-        apptRes.data.slice(-3).forEach(a => feed.push({
-          id:    `appt-${a.appointment_id}`,
-          icon:  Calendar,
-          color: '#a78bfa',
-          bg:    'rgba(139,92,246,0.12)',
-          text:  `Appointment: ${a.purpose}`,
-          sub:   `${a.location} · ${a.status}`,
-          time:  a.appointment_date,
-        }));
-
+        casesRes.data.slice(-4).forEach(c => feed.push({ id: `case-${c.case_id}`, icon: Briefcase, color: '#60a5fa', bg: 'rgba(59,130,246,0.12)', text: `Case "${c.title}" — ${c.status}`, sub: `Case #${c.case_id}`, time: c.created_at }));
+        clientsRes.data.slice(-3).forEach(c => feed.push({ id: `client-${c.client_id}`, icon: UserPlus, color: '#22c55e', bg: 'rgba(34,197,94,0.12)', text: `New client registered: ${c.name}`, sub: c.email, time: c.created_at }));
+        paymentsRes.data.slice(-3).forEach(p => feed.push({ id: `pay-${p.payment_id}`, icon: CreditCard, color: p.payment_status === 'Completed' ? '#22c55e' : '#fbbf24', bg: p.payment_status === 'Completed' ? 'rgba(34,197,94,0.12)' : 'rgba(251,191,36,0.12)', text: `Payment of $${Number(p.amount).toLocaleString()} — ${p.payment_status}`, sub: `Case #${p.case_id} · ${p.payment_method}`, time: p.payment_date }));
+        apptRes.data.slice(-3).forEach(a => feed.push({ id: `appt-${a.appointment_id}`, icon: Calendar, color: '#a78bfa', bg: 'rgba(139,92,246,0.12)', text: `Appointment: ${a.purpose}`, sub: `${a.location} · ${a.status}`, time: a.appointment_date }));
         feed.sort((a, b) => new Date(b.time) - new Date(a.time));
         setActivity(feed.slice(0, 8));
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoadingAct(false);
-      }
+      } catch (err) { console.error(err); }
+      finally { setLoadingAct(false); }
     };
     buildFeed();
   }, []);
 
   return (
-    <div className="min-vh-100 p-4 p-lg-5 text-white" style={{ background: '#0b1220' }}>
+    <div className="min-vh-100 p-4 p-lg-5" style={{ background: bg, color: textMain, transition: 'all 0.3s ease' }}>
 
       {/* HEADER */}
       <div className="d-flex align-items-center gap-3 mb-5">
@@ -140,27 +100,24 @@ const Dashboard = () => {
           <Scale size={26} className="text-warning" />
         </div>
         <div>
-          <h2 className="fw-bold mb-0">Command Center</h2>
-          <small className="text-white-50">Specter Litt — core performance metrics</small>
+          <h2 className="fw-bold mb-0" style={{ color: textMain }}>Command Center</h2>
+          <small style={{ color: textSub }}>Specter Litt — core performance metrics</small>
         </div>
       </div>
 
       {/* STAT CARDS */}
       <div className="row g-3 mb-5">
-        {STAT_META.map(({ key, title, icon: Icon, color, bg, format }) => (
+        {STAT_META.map(({ key, title, icon: Icon, color, bg: statBg, format }) => (
           <div className="col-6 col-lg-3" key={key}>
-            <div
-              className="rounded-4 p-3 h-100 position-relative overflow-hidden"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
-            >
+            <div className="rounded-4 p-3 h-100 position-relative overflow-hidden"
+              style={{ background: cardBg, border: `1px solid ${cardBorder}`, boxShadow: isDark ? 'none' : '0 2px 8px rgba(0,0,0,0.06)' }}>
               <Icon size={80} style={{ position: 'absolute', right: '-12px', bottom: '-12px', color, opacity: 0.06, pointerEvents: 'none' }} />
-              <div className="d-inline-flex p-2 rounded-3 mb-3" style={{ background: bg }}>
+              <div className="d-inline-flex p-2 rounded-3 mb-3" style={{ background: statBg }}>
                 <Icon size={18} style={{ color }} />
               </div>
-              <div className="text-white-50 small mb-1" style={{ fontSize: '12px' }}>{title}</div>
+              <div className="small mb-1" style={{ fontSize: '12px', color: textSub }}>{title}</div>
               <div className="fw-bold" style={{ fontSize: '22px', color }}>{format(stats[key] ?? 0)}</div>
-              <div className="position-absolute bottom-0 start-0"
-                style={{ height: '2px', width: '40%', background: color, opacity: 0.5, borderRadius: '0 2px 0 0' }} />
+              <div className="position-absolute bottom-0 start-0" style={{ height: '2px', width: '40%', background: color, opacity: 0.5, borderRadius: '0 2px 0 0' }} />
             </div>
           </div>
         ))}
@@ -171,60 +128,46 @@ const Dashboard = () => {
 
         {/* UPCOMING COURT DATES */}
         <div className="col-lg-6">
-          <div className="rounded-4 p-4 h-100"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-
+          <div className="rounded-4 p-4 h-100" style={{ background: cardBg, border: `1px solid ${cardBorder}`, boxShadow: isDark ? 'none' : '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div className="d-flex justify-content-between align-items-center mb-4">
               <div>
                 <div className="d-flex align-items-center gap-2 mb-1">
                   <div className="p-2 rounded-3" style={{ background: 'rgba(251,191,36,0.12)' }}>
                     <Gavel size={16} className="text-warning" />
                   </div>
-                  <h5 className="fw-bold mb-0">Upcoming Hearings</h5>
+                  <h5 className="fw-bold mb-0" style={{ color: textMain }}>Upcoming Hearings</h5>
                 </div>
-                <small className="text-white-50 ms-1">Next scheduled court dates</small>
+                <small style={{ color: textSub, marginLeft: '4px' }}>Next scheduled court dates</small>
               </div>
-              <span className="px-3 py-1 rounded-pill fw-bold"
-                style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', fontSize: '12px' }}>
+              <span className="px-3 py-1 rounded-pill fw-bold" style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', fontSize: '12px' }}>
                 {courtDates.length} upcoming
               </span>
             </div>
-
             {loadingCD ? (
-              <div className="text-center py-4 text-white-50 small">Loading...</div>
+              <div className="text-center py-4 small" style={{ color: textSub }}>Loading...</div>
             ) : courtDates.length === 0 ? (
-              <div className="text-center py-4 text-white-50 small">No upcoming court dates</div>
+              <div className="text-center py-4 small" style={{ color: textSub }}>No upcoming court dates</div>
             ) : (
               <div className="d-flex flex-column gap-3">
                 {courtDates.map((cd) => {
                   const urgency = getUrgency(cd.date);
                   return (
-                    <div key={cd.court_date_id}
-                      className="d-flex align-items-center gap-3 rounded-3 p-3"
-                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-
-                      {/* DATE BLOCK */}
+                    <div key={cd.court_date_id} className="d-flex align-items-center gap-3 rounded-3 p-3"
+                      style={{ background: innerBg, border: `1px solid ${innerBorder}` }}>
                       <div className="text-center rounded-3 flex-shrink-0 d-flex flex-column align-items-center justify-content-center"
                         style={{ width: '52px', height: '52px', background: urgency.bg, border: `1px solid ${urgency.color}33` }}>
-                        <div className="fw-bold" style={{ fontSize: '18px', color: urgency.color, lineHeight: 1 }}>
-                          {new Date(cd.date).getDate()}
-                        </div>
+                        <div className="fw-bold" style={{ fontSize: '18px', color: urgency.color, lineHeight: 1 }}>{new Date(cd.date).getDate()}</div>
                         <div className="text-uppercase" style={{ fontSize: '9px', color: urgency.color, letterSpacing: '1px' }}>
                           {new Date(cd.date).toLocaleDateString('en-US', { month: 'short' })}
                         </div>
                       </div>
-
-                      {/* INFO */}
                       <div className="flex-grow-1 overflow-hidden">
-                        <div className="fw-semibold text-truncate" style={{ fontSize: '13px' }}>{cd.court_name}</div>
+                        <div className="fw-semibold text-truncate" style={{ fontSize: '13px', color: textMain }}>{cd.court_name}</div>
                         <div className="d-flex align-items-center gap-2 mt-1">
-                          <Clock size={11} className="text-white-50" />
-                          <span className="text-white-50" style={{ fontSize: '11px' }}>{fmtTime(cd.date)}</span>
-                          <span className="text-white-50" style={{ fontSize: '11px' }}>· Case #{cd.case_id}</span>
+                          <Clock size={11} style={{ color: textSub }} />
+                          <span style={{ fontSize: '11px', color: textSub }}>{fmtTime(cd.date)} · Case #{cd.case_id}</span>
                         </div>
                       </div>
-
-                      {/* URGENCY */}
                       <span className="px-2 py-1 rounded-pill fw-bold flex-shrink-0"
                         style={{ fontSize: '11px', background: urgency.bg, color: urgency.color, border: `1px solid ${urgency.color}33` }}>
                         {urgency.label}
@@ -237,53 +180,44 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* RECENT ACTIVITY FEED */}
+        {/* RECENT ACTIVITY */}
         <div className="col-lg-6">
-          <div className="rounded-4 p-4 h-100"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-
+          <div className="rounded-4 p-4 h-100" style={{ background: cardBg, border: `1px solid ${cardBorder}`, boxShadow: isDark ? 'none' : '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div className="d-flex justify-content-between align-items-center mb-4">
               <div>
                 <div className="d-flex align-items-center gap-2 mb-1">
                   <div className="p-2 rounded-3" style={{ background: 'rgba(96,165,250,0.12)' }}>
                     <Activity size={16} style={{ color: '#60a5fa' }} />
                   </div>
-                  <h5 className="fw-bold mb-0">Recent Activity</h5>
+                  <h5 className="fw-bold mb-0" style={{ color: textMain }}>Recent Activity</h5>
                 </div>
-                <small className="text-white-50 ms-1">Latest actions across the firm</small>
+                <small style={{ color: textSub, marginLeft: '4px' }}>Latest actions across the firm</small>
               </div>
-              <span className="px-3 py-1 rounded-pill fw-bold"
-                style={{ background: 'rgba(96,165,250,0.1)', color: '#60a5fa', fontSize: '12px' }}>
-                Live
-              </span>
+              <span className="px-3 py-1 rounded-pill fw-bold" style={{ background: 'rgba(96,165,250,0.1)', color: '#60a5fa', fontSize: '12px' }}>Live</span>
             </div>
-
             {loadingAct ? (
-              <div className="text-center py-4 text-white-50 small">Loading...</div>
+              <div className="text-center py-4 small" style={{ color: textSub }}>Loading...</div>
             ) : activity.length === 0 ? (
-              <div className="text-center py-4 text-white-50 small">No recent activity</div>
+              <div className="text-center py-4 small" style={{ color: textSub }}>No recent activity</div>
             ) : (
               <div className="d-flex flex-column">
                 {activity.map((item, i) => {
-                  const Icon   = item.icon;
+                  const Icon = item.icon;
                   const isLast = i === activity.length - 1;
                   return (
                     <div key={item.id} className="d-flex gap-3 position-relative">
                       {!isLast && (
-                        <div className="position-absolute"
-                          style={{ left: '19px', top: '36px', width: '2px', height: 'calc(100% - 8px)', background: 'rgba(255,255,255,0.05)' }} />
+                        <div className="position-absolute" style={{ left: '19px', top: '36px', width: '2px', height: 'calc(100% - 8px)', background: divider }} />
                       )}
                       <div className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 position-relative"
                         style={{ width: 38, height: 38, background: item.bg, border: `1px solid ${item.color}33`, zIndex: 1 }}>
                         <Icon size={15} style={{ color: item.color }} />
                       </div>
                       <div className="pb-3 flex-grow-1 overflow-hidden">
-                        <div className="text-white fw-medium text-truncate" style={{ fontSize: '13px', lineHeight: 1.3 }}>
-                          {item.text}
-                        </div>
+                        <div className="fw-medium text-truncate" style={{ fontSize: '13px', lineHeight: 1.3, color: textMain }}>{item.text}</div>
                         <div className="d-flex align-items-center gap-2 mt-1">
-                          <span className="text-white-50 text-truncate" style={{ fontSize: '11px' }}>{item.sub}</span>
-                          <span className="text-white-50 flex-shrink-0" style={{ fontSize: '10px' }}>· {timeAgo(item.time)}</span>
+                          <span className="text-truncate" style={{ fontSize: '11px', color: textSub }}>{item.sub}</span>
+                          <span className="flex-shrink-0" style={{ fontSize: '10px', color: textSub }}>· {timeAgo(item.time)}</span>
                         </div>
                       </div>
                     </div>
@@ -293,18 +227,15 @@ const Dashboard = () => {
             )}
           </div>
         </div>
-
       </div>
 
       {/* CASE STATUS BAR */}
-      <div className="rounded-4 p-4"
-        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="rounded-4 p-4" style={{ background: cardBg, border: `1px solid ${cardBorder}`, boxShadow: isDark ? 'none' : '0 2px 8px rgba(0,0,0,0.06)' }}>
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5 className="fw-bold mb-0">Case Status Overview</h5>
-          <small className="text-white-50">Total: {stats.total} cases</small>
+          <h5 className="fw-bold mb-0" style={{ color: textMain }}>Case Status Overview</h5>
+          <small style={{ color: textSub }}>Total: {stats.total} cases</small>
         </div>
-
-        <div className="rounded-pill overflow-hidden mb-3" style={{ height: '10px', background: 'rgba(255,255,255,0.06)' }}>
+        <div className="rounded-pill overflow-hidden mb-3" style={{ height: '10px', background: isDark ? 'rgba(255,255,255,0.06)' : '#e2e8f0' }}>
           {stats.total > 0 && (
             <div className="d-flex h-100">
               <div style={{ width: `${(stats.open    / stats.total) * 100}%`, background: '#22c55e', transition: 'width 0.8s ease' }} />
@@ -313,7 +244,6 @@ const Dashboard = () => {
             </div>
           )}
         </div>
-
         <div className="d-flex flex-wrap gap-4">
           {[
             { label: 'Active',  value: stats.open,    color: '#22c55e', pct: stats.total ? Math.round((stats.open    / stats.total) * 100) : 0 },
@@ -322,14 +252,13 @@ const Dashboard = () => {
           ].map((s) => (
             <div key={s.label} className="d-flex align-items-center gap-2">
               <div className="rounded-circle" style={{ width: 10, height: 10, background: s.color }} />
-              <span className="text-white-50 small">{s.label}</span>
+              <span className="small" style={{ color: textSub }}>{s.label}</span>
               <span className="fw-bold small" style={{ color: s.color }}>{s.value}</span>
-              <span className="text-white-50" style={{ fontSize: '11px' }}>({s.pct}%)</span>
+              <span style={{ fontSize: '11px', color: textSub }}>({s.pct}%)</span>
             </div>
           ))}
         </div>
       </div>
-
     </div>
   );
 };

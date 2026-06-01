@@ -5,6 +5,7 @@ import {
   Briefcase, Search, Plus, Edit, Trash2,
   X, Calendar, User, Scale, Clock, FileText, Filter
 } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 const BASE_URL = 'https://lfms-backend-dgpk.onrender.com/api/law';
 
@@ -24,7 +25,21 @@ const Cases = () => {
   const dispatch = useDispatch();
   const { items: cases, loading, error } = useSelector((state) => state.cases);
   const { role } = useSelector((s) => s.auth);
+  const { isDark } = useTheme();
   const isAdmin = role === 'admin';
+
+  const bg          = isDark ? '#0b1220'                : '#f1f5f9';
+  const cardBg      = isDark ? 'rgba(255,255,255,0.03)' : '#ffffff';
+  const cardBorder  = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)';
+  const textMain    = isDark ? 'white'                  : '#1e293b';
+  const textSub     = isDark ? 'rgba(255,255,255,0.5)'  : 'rgba(0,0,0,0.45)';
+  const inputBg     = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)';
+  const inputBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)';
+  const innerBg     = isDark ? 'rgba(255,255,255,0.04)' : '#f8fafc';
+  const innerBorder = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
+  const modalBg     = isDark ? '#111827'                : '#ffffff';
+  const modalBorder = isDark ? 'rgba(255,255,255,0.1)'  : 'rgba(0,0,0,0.1)';
+  const inputField  = isDark ? 'bg-dark border-secondary text-white' : 'border text-dark';
 
   const [search,         setSearch]         = useState('');
   const [filterStatus,   setFilterStatus]   = useState('all');
@@ -36,12 +51,11 @@ const Cases = () => {
   const [formData,       setFormData]       = useState(EMPTY_FORM);
   const [descModal,      setDescModal]      = useState(false);
   const [descCase,       setDescCase]       = useState(null);
-
-  const [docsModal,   setDocsModal]   = useState(false);
-  const [docsCase,    setDocsCase]    = useState(null);
-  const [documents,   setDocuments]   = useState([]);
-  const [docsLoading, setDocsLoading] = useState(false);
-  const [uploading,   setUploading]   = useState(false);
+  const [docsModal,      setDocsModal]      = useState(false);
+  const [docsCase,       setDocsCase]       = useState(null);
+  const [documents,      setDocuments]      = useState([]);
+  const [docsLoading,    setDocsLoading]    = useState(false);
+  const [uploading,      setUploading]      = useState(false);
 
   useEffect(() => { dispatch(fetchCases()); }, [dispatch]);
 
@@ -75,11 +89,8 @@ const Cases = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (editMode) {
-        await dispatch(updateCase({ id: currentId, data: formData })).unwrap();
-      } else {
-        await dispatch(addCase(formData)).unwrap();
-      }
+      if (editMode) await dispatch(updateCase({ id: currentId, data: formData })).unwrap();
+      else await dispatch(addCase(formData)).unwrap();
       setShowModal(false);
       setFormData(EMPTY_FORM);
     } catch { alert('Operation failed'); }
@@ -91,33 +102,22 @@ const Cases = () => {
     catch { alert('Delete failed'); }
   };
 
-  const viewDescription = (caseItem) => {
-    setDescCase(caseItem);
-    setDescModal(true);
-  };
-
   const openDocs = async (caseItem) => {
     setDocsCase(caseItem);
     setDocuments([]);
     setDocsModal(true);
-    fetchDocuments(caseItem.case_id);
-  };
-
-  const fetchDocuments = async (caseId) => {
     setDocsLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/cases/${caseId}/documents`, {
+      const res  = await fetch(`${BASE_URL}/cases/${caseItem.case_id}/documents`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       const data = await res.json();
       setDocuments(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setDocsLoading(false);
-    }
+    } catch { console.error('docs fetch failed'); }
+    finally { setDocsLoading(false); }
   };
 
+  // ← FIXED: now properly async with await inside
   const handleUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -126,15 +126,14 @@ const Cases = () => {
     form.append('file', file);
     form.append('uploaded_by', 'Admin');
     try {
-      const res = await fetch(`${BASE_URL}/cases/${docsCase.case_id}/documents`, {
-        method: 'POST',
+      const res  = await fetch(`${BASE_URL}/cases/${docsCase.case_id}/documents`, {
+        method:  'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: form
+        body:    form,
       });
-      const data = await res.json();
+      const data = await res.json();          // ← no longer inside arrow fn
       setDocuments(prev => [data, ...prev]);
-    } catch (err) {
-      console.error(err);
+    } catch {
       alert('Upload failed');
     } finally {
       setUploading(false);
@@ -146,19 +145,17 @@ const Cases = () => {
     if (!window.confirm('Delete this document?')) return;
     try {
       await fetch(`${BASE_URL}/cases/documents/${documentId}`, {
-        method: 'DELETE',
+        method:  'DELETE',
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setDocuments(prev => prev.filter(d => d.document_id !== documentId));
-    } catch (err) {
-      alert('Delete failed');
-    }
+    } catch { alert('Delete failed'); }
   };
 
   const hasIdFilters = filterClientId !== '' || filterLawyerId !== '';
 
   return (
-    <div className="min-vh-100 p-4 p-lg-5 text-white" style={{ background: '#0b1220' }}>
+    <div className="min-vh-100 p-4 p-lg-5" style={{ background: bg, color: textMain, transition: 'all 0.3s ease' }}>
 
       {/* HEADER */}
       <div className="d-flex flex-wrap justify-content-between align-items-start mb-5 gap-3">
@@ -167,9 +164,9 @@ const Cases = () => {
             <div className="p-2 rounded-3" style={{ background: 'rgba(251,191,36,0.15)' }}>
               <Scale size={24} className="text-warning" />
             </div>
-            <h2 className="fw-bold mb-0">Case Management</h2>
+            <h2 className="fw-bold mb-0" style={{ color: textMain }}>Case Management</h2>
           </div>
-          <small className="text-white-50 ms-1">Track, manage and update all legal cases</small>
+          <small style={{ color: textSub }}>Track, manage and update all legal cases</small>
         </div>
         {isAdmin && (
           <button onClick={() => openModal()}
@@ -189,9 +186,10 @@ const Cases = () => {
           { label: 'Closed',      value: cases.filter(c => c.status === 'closed').length,  color: '#f87171', bg: 'rgba(239,68,68,0.1)'   },
         ].map((stat) => (
           <div className="col-6 col-lg-3" key={stat.label}>
-            <div className="rounded-4 p-3 h-100" style={{ background: stat.bg, border: `1px solid ${stat.color}22` }}>
+            <div className="rounded-4 p-3 h-100"
+              style={{ background: isDark ? stat.bg : '#fff', border: `1px solid ${isDark ? stat.color + '22' : 'rgba(0,0,0,0.08)'}`, boxShadow: isDark ? 'none' : '0 2px 8px rgba(0,0,0,0.05)' }}>
               <div className="fw-bold fs-4" style={{ color: stat.color }}>{stat.value}</div>
-              <div className="small text-white-50">{stat.label}</div>
+              <div className="small" style={{ color: textSub }}>{stat.label}</div>
             </div>
           </div>
         ))}
@@ -200,52 +198,39 @@ const Cases = () => {
       {/* SEARCH + STATUS FILTER */}
       <div className="d-flex flex-wrap gap-3 mb-3">
         <div className="d-flex align-items-center px-3 py-2 rounded-pill flex-grow-1"
-          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', maxWidth: '380px' }}>
-          <Search size={15} className="text-white-50" />
+          style={{ background: inputBg, border: `1px solid ${inputBorder}`, maxWidth: '380px' }}>
+          <Search size={15} style={{ color: textSub }} />
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search cases..."
-            className="form-control bg-transparent border-0 text-white shadow-none ms-2 p-0"
-            style={{ fontSize: '14px' }} />
+            className="form-control bg-transparent border-0 shadow-none ms-2 p-0"
+            style={{ fontSize: '14px', color: textMain }} />
         </div>
         <div className="d-flex gap-2 flex-wrap">
           {['all', 'open', 'pending', 'closed', 'appealed'].map((s) => (
             <button key={s} onClick={() => setFilterStatus(s)}
               className="btn btn-sm rounded-pill px-3 fw-bold text-capitalize"
-              style={{
-                background: filterStatus === s ? '#fbbf24' : 'rgba(255,255,255,0.06)',
-                color:      filterStatus === s ? '#0b1220'  : 'rgba(255,255,255,0.6)',
-                border: 'none', fontSize: '12px'
-              }}>
+              style={{ background: filterStatus === s ? '#fbbf24' : inputBg, color: filterStatus === s ? '#0b1220' : textSub, border: 'none', fontSize: '12px' }}>
               {s === 'all' ? 'All' : s}
             </button>
           ))}
         </div>
       </div>
 
-      {/* CLIENT ID + LAWYER ID FILTERS */}
+      {/* ID FILTERS */}
       <div className="d-flex flex-wrap gap-3 mb-4 align-items-center">
         <div className="d-flex align-items-center gap-2">
-          <Filter size={14} className="text-white-50" />
-          <span className="small text-white-50 fw-semibold">Filter by ID:</span>
+          <Filter size={14} style={{ color: textSub }} />
+          <span className="small fw-semibold" style={{ color: textSub }}>Filter by ID:</span>
         </div>
-        <div className="d-flex align-items-center px-3 py-2 rounded-pill"
-          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', width: '160px' }}>
-          <User size={13} className="text-white-50 flex-shrink-0" />
-          <input type="number" value={filterClientId}
-            onChange={(e) => setFilterClientId(e.target.value)}
-            placeholder="Client ID"
-            className="form-control bg-transparent border-0 text-white shadow-none ms-2 p-0"
-            style={{ fontSize: '13px' }} />
-        </div>
-        <div className="d-flex align-items-center px-3 py-2 rounded-pill"
-          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', width: '160px' }}>
-          <Scale size={13} className="text-white-50 flex-shrink-0" />
-          <input type="number" value={filterLawyerId}
-            onChange={(e) => setFilterLawyerId(e.target.value)}
-            placeholder="Lawyer ID"
-            className="form-control bg-transparent border-0 text-white shadow-none ms-2 p-0"
-            style={{ fontSize: '13px' }} />
-        </div>
+        {[['Client ID', filterClientId, setFilterClientId, User], ['Lawyer ID', filterLawyerId, setFilterLawyerId, Scale]].map(([label, val, setter, Icon]) => (
+          <div key={label} className="d-flex align-items-center px-3 py-2 rounded-pill"
+            style={{ background: inputBg, border: `1px solid ${inputBorder}`, width: '160px' }}>
+            <Icon size={13} style={{ color: textSub, flexShrink: 0 }} />
+            <input type="number" value={val} onChange={(e) => setter(e.target.value)} placeholder={label}
+              className="form-control bg-transparent border-0 shadow-none ms-2 p-0"
+              style={{ fontSize: '13px', color: textMain }} />
+          </div>
+        ))}
         {hasIdFilters && (
           <>
             <button onClick={() => { setFilterClientId(''); setFilterLawyerId(''); }}
@@ -253,79 +238,82 @@ const Cases = () => {
               style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)', fontSize: '12px' }}>
               <X size={12} /> Clear
             </button>
-            <span className="small text-white-50">
-              Showing <span className="text-white fw-semibold">{filtered.length}</span> result{filtered.length !== 1 ? 's' : ''}
+            <span className="small" style={{ color: textSub }}>
+              Showing <span className="fw-semibold" style={{ color: textMain }}>{filtered.length}</span> results
             </span>
           </>
         )}
       </div>
 
-      {loading && <div className="text-center py-5 text-white-50">Loading cases...</div>}
+      {loading && <div className="text-center py-5" style={{ color: textSub }}>Loading cases...</div>}
       {error   && <div className="alert alert-danger">{typeof error === 'string' ? error : 'Something went wrong'}</div>}
 
       {/* CARDS */}
       {!loading && (
         <div className="row g-4">
           {filtered.length > 0 ? filtered.map((c) => {
-            const s = STATUS_STYLES[c.status] || STATUS_STYLES.open;
+            const s      = STATUS_STYLES[c.status] || STATUS_STYLES.open;
             const isLong = c.description?.length > 100;
             return (
               <div className="col-12 col-md-6 col-xl-4" key={c.case_id}>
                 <div className="rounded-4 h-100 d-flex flex-column"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+                  style={{ background: cardBg, border: `1px solid ${cardBorder}`, overflow: 'hidden', boxShadow: isDark ? 'none' : '0 2px 8px rgba(0,0,0,0.06)' }}>
                   <div style={{ height: '3px', background: s.color, opacity: 0.7 }} />
                   <div className="p-4 d-flex flex-column flex-grow-1">
+
                     <div className="d-flex justify-content-between align-items-start mb-3">
                       <div className="d-flex align-items-center gap-2">
                         <div className="p-2 rounded-3" style={{ background: 'rgba(251,191,36,0.1)' }}>
                           <Briefcase size={16} className="text-warning" />
                         </div>
-                        <span className="text-white-50 small">#{c.case_id}</span>
+                        <span className="small" style={{ color: textSub }}>#{c.case_id}</span>
                       </div>
                       <span className="px-3 py-1 rounded-pill"
                         style={{ fontSize: '11px', fontWeight: 600, background: s.bg, color: s.color }}>
                         {s.label}
                       </span>
                     </div>
-                    <h5 className="fw-bold mb-2" style={{ lineHeight: 1.3 }}>{c.title}</h5>
-                    <p className="text-white-50 small mb-2"
-                      style={{ lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+
+                    <h5 className="fw-bold mb-2" style={{ lineHeight: 1.3, color: textMain }}>{c.title}</h5>
+
+                    <p className="small mb-2"
+                      style={{ lineHeight: 1.6, color: textSub, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {c.description}
                     </p>
+
                     {isLong && (
-                      <button onClick={() => viewDescription(c)}
+                      <button onClick={() => { setDescCase(c); setDescModal(true); }}
                         className="btn btn-sm d-flex align-items-center gap-1 mb-3 p-0"
                         style={{ background: 'none', border: 'none', color: '#fbbf24', fontSize: '12px', fontWeight: 600, width: 'fit-content' }}>
                         <FileText size={12} /> View full description
                       </button>
                     )}
+
                     <div className="d-flex flex-column gap-2 mt-auto mb-4">
-                      <div className="d-flex align-items-center gap-2 small text-white-50">
+                      <div className="d-flex align-items-center gap-2 small" style={{ color: textSub }}>
                         <User size={13} />
-                        <span>Client ID: <span className="text-white">{c.client_id}</span></span>
+                        <span>Client ID: <span style={{ color: textMain }}>{c.client_id}</span></span>
                         <span className="ms-2">
                           <Scale size={13} className="me-1" />
-                          Lawyer ID: <span className="text-white">{c.lawyer_id}</span>
+                          Lawyer ID: <span style={{ color: textMain }}>{c.lawyer_id}</span>
                         </span>
                       </div>
-                      <div className="d-flex align-items-center gap-2 small text-white-50">
+                      <div className="d-flex align-items-center gap-2 small" style={{ color: textSub }}>
                         <Calendar size={13} />
-                        <span>Filed: <span className="text-white">{formatDate(c.created_at)}</span></span>
+                        <span>Filed: <span style={{ color: textMain }}>{formatDate(c.created_at)}</span></span>
                       </div>
-                      <div className="d-flex align-items-center gap-2 small text-white-50">
+                      <div className="d-flex align-items-center gap-2 small" style={{ color: textSub }}>
                         <Clock size={13} />
-                        <span>Updated: <span className="text-white">{formatDate(c.updated_at)}</span></span>
+                        <span>Updated: <span style={{ color: textMain }}>{formatDate(c.updated_at)}</span></span>
                       </div>
                     </div>
 
-                    {/* DOCUMENTS BUTTON */}
                     <button onClick={() => openDocs(c)}
                       className="btn btn-sm rounded-pill fw-bold mb-2 d-flex align-items-center justify-content-center gap-2"
                       style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)', fontSize: '13px', width: '100%' }}>
                       <FileText size={13} /> Documents
                     </button>
 
-                    {/* EDIT / DELETE — admin only */}
                     {isAdmin && (
                       <div className="d-flex gap-2">
                         <button onClick={() => openModal(c)}
@@ -345,7 +333,7 @@ const Cases = () => {
               </div>
             );
           }) : (
-            <div className="col-12 text-center py-5 text-white-50">No cases found</div>
+            <div className="col-12 text-center py-5" style={{ color: textSub }}>No cases found</div>
           )}
         </div>
       )}
@@ -353,37 +341,36 @@ const Cases = () => {
       {/* DESCRIPTION MODAL */}
       {descModal && descCase && (
         <div className="modal-overlay d-flex align-items-center justify-content-center">
-          <div className="p-4 text-white"
-            style={{ background: '#111827', width: '520px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '80vh', overflowY: 'auto' }}>
+          <div className="p-4" style={{ background: modalBg, color: textMain, width: '520px', borderRadius: '20px', border: `1px solid ${modalBorder}`, maxHeight: '80vh', overflowY: 'auto' }}>
             <div className="d-flex justify-content-between align-items-start mb-4">
               <div className="d-flex align-items-start gap-3">
                 <div className="p-2 rounded-3 flex-shrink-0" style={{ background: 'rgba(251,191,36,0.15)' }}>
                   <FileText size={18} className="text-warning" />
                 </div>
                 <div>
-                  <h5 className="mb-1 fw-bold">{descCase.title}</h5>
+                  <h5 className="mb-1 fw-bold" style={{ color: textMain }}>{descCase.title}</h5>
                   <div className="d-flex align-items-center gap-2">
                     <span className="px-2 py-1 rounded-pill"
                       style={{ fontSize: '10px', fontWeight: 600, background: (STATUS_STYLES[descCase.status] || STATUS_STYLES.open).bg, color: (STATUS_STYLES[descCase.status] || STATUS_STYLES.open).color }}>
                       {(STATUS_STYLES[descCase.status] || STATUS_STYLES.open).label}
                     </span>
-                    <span className="text-white-50 small">Case #{descCase.case_id}</span>
+                    <span className="small" style={{ color: textSub }}>Case #{descCase.case_id}</span>
                   </div>
                 </div>
               </div>
-              <X style={{ cursor: 'pointer', flexShrink: 0 }} onClick={() => setDescModal(false)} />
+              <X style={{ cursor: 'pointer', color: textSub, flexShrink: 0 }} onClick={() => setDescModal(false)} />
             </div>
-            <div style={{ height: '1px', background: 'rgba(255,255,255,0.07)', marginBottom: '1.2rem' }} />
-            <div className="rounded-3 p-3 mb-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <p className="text-white-50 small mb-0" style={{ lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{descCase.description}</p>
+            <div style={{ height: '1px', background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)', marginBottom: '1.2rem' }} />
+            <div className="rounded-3 p-3 mb-4" style={{ background: innerBg, border: `1px solid ${innerBorder}` }}>
+              <p className="small mb-0" style={{ lineHeight: 1.8, whiteSpace: 'pre-wrap', color: textSub }}>{descCase.description}</p>
             </div>
-            <div className="d-flex flex-wrap gap-3 small text-white-50 mb-4">
-              <div className="d-flex align-items-center gap-1"><User size={13} /> Client ID: <span className="text-white ms-1">{descCase.client_id}</span></div>
-              <div className="d-flex align-items-center gap-1"><Scale size={13} /> Lawyer ID: <span className="text-white ms-1">{descCase.lawyer_id}</span></div>
-              <div className="d-flex align-items-center gap-1"><Calendar size={13} /> Filed: <span className="text-white ms-1">{formatDate(descCase.created_at)}</span></div>
+            <div className="d-flex flex-wrap gap-3 small mb-4" style={{ color: textSub }}>
+              <div className="d-flex align-items-center gap-1"><User size={13} /> Client ID: <span style={{ color: textMain }} className="ms-1">{descCase.client_id}</span></div>
+              <div className="d-flex align-items-center gap-1"><Scale size={13} /> Lawyer ID: <span style={{ color: textMain }} className="ms-1">{descCase.lawyer_id}</span></div>
+              <div className="d-flex align-items-center gap-1"><Calendar size={13} /> Filed: <span style={{ color: textMain }} className="ms-1">{formatDate(descCase.created_at)}</span></div>
             </div>
             <button onClick={() => setDescModal(false)} className="btn w-100 py-2 fw-bold rounded-pill"
-              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              style={{ background: inputBg, color: textSub, border: `1px solid ${inputBorder}` }}>
               Close
             </button>
           </div>
@@ -393,35 +380,25 @@ const Cases = () => {
       {/* DOCUMENTS MODAL */}
       {docsModal && docsCase && (
         <div className="modal-overlay d-flex align-items-center justify-content-center">
-          <div className="p-4 text-white"
-            style={{ background: '#111827', width: '560px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '85vh', overflowY: 'auto' }}>
+          <div className="p-4" style={{ background: modalBg, color: textMain, width: '560px', borderRadius: '20px', border: `1px solid ${modalBorder}`, maxHeight: '85vh', overflowY: 'auto' }}>
             <div className="d-flex justify-content-between align-items-start mb-4">
               <div className="d-flex align-items-start gap-3">
                 <div className="p-2 rounded-3 flex-shrink-0" style={{ background: 'rgba(251,191,36,0.15)' }}>
                   <FileText size={18} className="text-warning" />
                 </div>
                 <div>
-                  <h5 className="mb-1 fw-bold">Case Documents</h5>
-                  <small className="text-white-50">{docsCase.title}</small>
+                  <h5 className="mb-1 fw-bold" style={{ color: textMain }}>Case Documents</h5>
+                  <small style={{ color: textSub }}>{docsCase.title}</small>
                 </div>
               </div>
-              <X style={{ cursor: 'pointer', flexShrink: 0 }} onClick={() => setDocsModal(false)} />
+              <X style={{ cursor: 'pointer', color: textSub, flexShrink: 0 }} onClick={() => setDocsModal(false)} />
             </div>
+            <div style={{ height: '1px', background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)', marginBottom: '1.2rem' }} />
 
-            <div style={{ height: '1px', background: 'rgba(255,255,255,0.07)', marginBottom: '1.2rem' }} />
-
-            {/* UPLOAD — admin only */}
             {isAdmin && (
               <div className="mb-4">
                 <label className="w-100 py-3 rounded-3 d-flex align-items-center justify-content-center gap-2 fw-bold"
-                  style={{
-                    background: 'rgba(251,191,36,0.06)',
-                    color: uploading ? 'rgba(251,191,36,0.4)' : '#fbbf24',
-                    border: '2px dashed rgba(251,191,36,0.25)',
-                    cursor: uploading ? 'not-allowed' : 'pointer',
-                    fontSize: '14px',
-                    borderRadius: '12px'
-                  }}>
+                  style={{ background: 'rgba(251,191,36,0.06)', color: uploading ? 'rgba(251,191,36,0.4)' : '#fbbf24', border: '2px dashed rgba(251,191,36,0.25)', cursor: uploading ? 'not-allowed' : 'pointer', fontSize: '14px', borderRadius: '12px' }}>
                   <Plus size={16} />
                   {uploading ? 'Uploading...' : 'Click to Upload Document'}
                   <input type="file" className="d-none" onChange={handleUpload} disabled={uploading}
@@ -430,11 +407,10 @@ const Cases = () => {
               </div>
             )}
 
-            {/* DOCUMENTS LIST */}
             {docsLoading ? (
-              <div className="text-center py-4 text-white-50">Loading documents...</div>
+              <div className="text-center py-4" style={{ color: textSub }}>Loading documents...</div>
             ) : documents.length === 0 ? (
-              <div className="text-center py-5 text-white-50">
+              <div className="text-center py-5" style={{ color: textSub }}>
                 <FileText size={32} className="mb-3 opacity-25" />
                 <div>No documents attached to this case</div>
               </div>
@@ -442,13 +418,13 @@ const Cases = () => {
               <div className="d-flex flex-column gap-3">
                 {documents.map((doc) => (
                   <div key={doc.document_id} className="d-flex align-items-center gap-3 p-3 rounded-3"
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    style={{ background: innerBg, border: `1px solid ${innerBorder}` }}>
                     <div className="p-2 rounded-3 flex-shrink-0" style={{ background: 'rgba(251,191,36,0.1)' }}>
                       <FileText size={16} className="text-warning" />
                     </div>
                     <div className="flex-grow-1 overflow-hidden">
-                      <div className="fw-semibold small text-truncate">{doc.file_name}</div>
-                      <div className="text-white-50" style={{ fontSize: '11px' }}>
+                      <div className="fw-semibold small text-truncate" style={{ color: textMain }}>{doc.file_name}</div>
+                      <div style={{ fontSize: '11px', color: textSub }}>
                         Uploaded by {doc.uploaded_by} · {new Date(doc.uploaded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </div>
                     </div>
@@ -472,7 +448,7 @@ const Cases = () => {
             )}
 
             <button onClick={() => setDocsModal(false)} className="btn w-100 py-2 fw-bold rounded-pill mt-4"
-              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              style={{ background: inputBg, color: textSub, border: `1px solid ${inputBorder}` }}>
               Close
             </button>
           </div>
@@ -482,55 +458,55 @@ const Cases = () => {
       {/* ADD/EDIT MODAL */}
       {showModal && isAdmin && (
         <div className="modal-overlay d-flex align-items-center justify-content-center">
-          <div className="p-4 text-white"
-            style={{ background: '#111827', width: '480px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="p-4" style={{ background: modalBg, color: textMain, width: '480px', borderRadius: '20px', border: `1px solid ${modalBorder}`, maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="d-flex justify-content-between align-items-center mb-4">
               <div className="d-flex align-items-center gap-2">
                 <div className="p-2 rounded-3" style={{ background: 'rgba(251,191,36,0.15)' }}>
                   <Briefcase size={18} className="text-warning" />
                 </div>
-                <h5 className="mb-0 fw-bold">{editMode ? 'Edit Case' : 'New Case'}</h5>
+                <h5 className="mb-0 fw-bold" style={{ color: textMain }}>{editMode ? 'Edit Case' : 'New Case'}</h5>
               </div>
-              <X style={{ cursor: 'pointer' }} onClick={() => setShowModal(false)} />
+              <X style={{ cursor: 'pointer', color: textSub }} onClick={() => setShowModal(false)} />
             </div>
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
-                <label className="small text-white-50 mb-1">Case Title</label>
+                <label className="small mb-1" style={{ color: textSub }}>Case Title</label>
                 <input type="text" required value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="form-control bg-dark border-secondary text-white" style={{ borderRadius: '10px' }} />
+                  className={`form-control ${inputField}`}
+                  style={{ borderRadius: '10px', background: isDark ? '#1f2937' : '#f8fafc', color: textMain }} />
               </div>
               <div className="mb-3">
-                <label className="small text-white-50 mb-1">Description</label>
+                <label className="small mb-1" style={{ color: textSub }}>Description</label>
                 <textarea rows={3} required value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="form-control bg-dark border-secondary text-white" style={{ borderRadius: '10px', resize: 'none' }} />
+                  className={`form-control ${inputField}`}
+                  style={{ borderRadius: '10px', resize: 'none', background: isDark ? '#1f2937' : '#f8fafc', color: textMain }} />
               </div>
               <div className="row g-3 mb-3">
-                <div className="col-6">
-                  <label className="small text-white-50 mb-1">Client ID</label>
-                  <input type="number" required value={formData.client_id}
-                    onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                    className="form-control bg-dark border-secondary text-white" style={{ borderRadius: '10px' }} />
-                </div>
-                <div className="col-6">
-                  <label className="small text-white-50 mb-1">Lawyer ID</label>
-                  <input type="number" required value={formData.lawyer_id}
-                    onChange={(e) => setFormData({ ...formData, lawyer_id: e.target.value })}
-                    className="form-control bg-dark border-secondary text-white" style={{ borderRadius: '10px' }} />
-                </div>
+                {[['Client ID', 'client_id'], ['Lawyer ID', 'lawyer_id']].map(([label, key]) => (
+                  <div className="col-6" key={key}>
+                    <label className="small mb-1" style={{ color: textSub }}>{label}</label>
+                    <input type="number" required value={formData[key]}
+                      onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                      className={`form-control ${inputField}`}
+                      style={{ borderRadius: '10px', background: isDark ? '#1f2937' : '#f8fafc', color: textMain }} />
+                  </div>
+                ))}
               </div>
               <div className="mb-4">
-                <label className="small text-white-50 mb-1">Status</label>
+                <label className="small mb-1" style={{ color: textSub }}>Status</label>
                 <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="form-select bg-dark border-secondary text-white" style={{ borderRadius: '10px' }}>
+                  className={`form-select ${inputField}`}
+                  style={{ borderRadius: '10px', background: isDark ? '#1f2937' : '#f8fafc', color: textMain }}>
                   <option value="open">Open</option>
                   <option value="pending">Pending</option>
                   <option value="closed">Closed</option>
                   <option value="appealed">Appealed</option>
                 </select>
               </div>
-              <button type="submit" className="btn w-100 py-2 fw-bold rounded-pill" style={{ background: '#fbbf24', color: '#0b1220' }}>
+              <button type="submit" className="btn w-100 py-2 fw-bold rounded-pill"
+                style={{ background: '#fbbf24', color: '#0b1220' }}>
                 {editMode ? 'Save Changes' : 'Create Case'}
               </button>
             </form>
@@ -539,10 +515,11 @@ const Cases = () => {
       )}
 
       <style>{`
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; backdrop-filter: blur(5px); }
-        .form-control:focus, .form-select:focus { box-shadow: none; border-color: rgba(251,191,36,0.4) !important; }
-        .form-control::placeholder { color: rgba(255,255,255,0.3); }
-        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; backdrop-filter: blur(5px); }
+        .form-control:focus, .form-select:focus { box-shadow: none !important; border-color: rgba(251,191,36,0.4) !important; }
+        .form-control::placeholder { color: ${textSub} !important; }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
       `}</style>
     </div>
   );
