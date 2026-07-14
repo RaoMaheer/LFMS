@@ -83,7 +83,7 @@ const Login = () => {
               className="fw-bold"
               style={{ fontSize: '5rem', letterSpacing: '2px' }}
             >
-              Specter Litt
+              Rao Law Associates
             </h1>
 
             <p

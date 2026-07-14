@@ -101,7 +101,7 @@ const Dashboard = () => {
         </div>
         <div>
           <h2 className="fw-bold mb-0" style={{ color: textMain }}>Command Center</h2>
-          <small style={{ color: textSub }}>Specter Litt — core performance metrics</small>
+          <small style={{ color: textSub }}>Rao Law Associates — core performance metrics</small>
         </div>
       </div>
 

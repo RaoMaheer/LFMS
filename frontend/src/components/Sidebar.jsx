@@ -69,7 +69,7 @@ const Sidebar = () => {
           <Scale style={{ color: isDark ? '#0b1220' : 'white' }} size={22} />
         </div>
         <span className="h5 mb-0 fw-bolder text-uppercase" style={{ color: t.titleColor, letterSpacing: '1px' }}>
-          Specter Litt
+          Rao Law Associates
         </span>
       </div>
 
